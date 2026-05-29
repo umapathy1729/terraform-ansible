@@ -1,0 +1,54 @@
+---
+- name: Install Docker
+  shell: amazon-linux-extras install docker -y
+
+- name: Start Docker
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Install Docker Compose
+  shell: |
+    curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64" -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+    ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+- name: Verify Docker Compose
+  shell: /usr/local/bin/docker-compose --version
+
+- name: Download Harbor
+  get_url:
+    url: https://github.com/goharbor/harbor/releases/download/v2.10.0/harbor-online-installer-v2.10.0.tgz
+    dest: /opt/harbor-installer.tgz
+    timeout: 120
+
+- name: Extract Harbor
+  unarchive:
+    src: /opt/harbor-installer.tgz
+    dest: /opt/
+    remote_src: yes
+
+- name: Create Harbor Log Directory
+  file:
+    path: /var/log/harbor
+    state: directory
+    mode: '0755'
+
+- name: Configure Harbor
+  shell: |
+    cd /opt/harbor
+    cp harbor.yml.tmpl harbor.yml
+    sed -i 's/hostname: reg.mydomain.com/hostname: 13.239.242.186/' harbor.yml
+    sed -i '/^https:/,/^[^ ]/{ /^https:/d; /certificate:/d; /private_key:/d }' harbor.yml
+    sed -i 's/  port: 443//' harbor.yml
+
+- name: Install Harbor
+  shell: |
+    cd /opt/harbor
+    /usr/local/bin/docker-compose down 2>/dev/null || true
+    ./install.sh
+  environment:
+    PATH: "/usr/local/bin:/usr/bin:/bin"
+  async: 600
+  poll: 30

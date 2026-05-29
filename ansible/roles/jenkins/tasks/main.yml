@@ -1,0 +1,84 @@
+---
+- name: Check Java Version
+  shell: java -version 2>&1
+  register: java_version
+  ignore_errors: yes
+
+- name: Download Java 21 RPM
+  shell: |
+    wget https://corretto.aws/downloads/latest/amazon-corretto-21-x64-linux-jdk.rpm -O /tmp/java21.rpm
+  when: java_version.rc != 0
+
+- name: Install Java 21 RPM
+  shell: yum install -y /tmp/java21.rpm
+  when: java_version.rc != 0
+
+- name: Add Jenkins Repo
+  get_url:
+    url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
+    dest: /etc/yum.repos.d/jenkins.repo
+
+- name: Add Jenkins GPG Key
+  rpm_key:
+    key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+    state: present
+
+- name: Install Jenkins
+  yum:
+    name: jenkins
+    state: present
+    update_cache: yes
+
+- name: Set JAVA_HOME in Jenkins config
+  lineinfile:
+    path: /etc/sysconfig/jenkins
+    regexp: '^JENKINS_JAVA_CMD='
+    line: 'JENKINS_JAVA_CMD=/usr/bin/java'
+    create: yes
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Start Jenkins
+  systemd:
+    name: jenkins
+    state: started
+    enabled: yes
+
+- name: Install Git
+  yum:
+    name: git
+    state: present
+
+- name: Install NodeJS 18
+  shell: |
+    curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+    yum install -y nodejs --skip-broken
+
+- name: Install AWS CLI
+  shell: |
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+    unzip -o /tmp/awscliv2.zip -d /tmp
+    sudo /tmp/aws/install --update
+
+- name: Install Docker
+  shell: amazon-linux-extras install docker -y
+
+- name: Start Docker
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Add Jenkins to Docker group
+  user:
+    name: jenkins
+    groups: docker
+    append: yes
+
+- name: Install SonarQube Scanner
+  shell: |
+    wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -O /tmp/sonar-scanner.zip
+    unzip -o /tmp/sonar-scanner.zip -d /opt/
+    ln -sf /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner /usr/local/bin/sonar-scanner

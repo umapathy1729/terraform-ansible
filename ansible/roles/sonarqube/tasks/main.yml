@@ -1,0 +1,75 @@
+---
+- name: Install Java 21 for SonarQube
+  shell: |
+    if ! java -version 2>&1 | grep -q "21"; then
+      wget https://corretto.aws/downloads/latest/amazon-corretto-21-x64-linux-jdk.rpm -O /tmp/java21.rpm
+      yum install -y /tmp/java21.rpm
+    fi
+
+- name: Set vm.max_map_count
+  sysctl:
+    name: vm.max_map_count
+    value: "524288"
+    state: present
+    reload: yes
+
+- name: Set fs.file-max
+  sysctl:
+    name: fs.file-max
+    value: "131072"
+    state: present
+    reload: yes
+
+- name: Install unzip
+  yum:
+    name: unzip
+    state: present
+
+- name: Download SonarQube
+  get_url:
+    url: https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-10.4.1.88267.zip
+    dest: /opt/sonarqube.zip
+    timeout: 120
+
+- name: Extract SonarQube
+  unarchive:
+    src: /opt/sonarqube.zip
+    dest: /opt/
+    remote_src: yes
+
+- name: Create SonarQube User
+  user:
+    name: sonarqube
+    system: yes
+
+- name: Set Permissions
+  file:
+    path: /opt/sonarqube-10.4.1.88267
+    owner: sonarqube
+    group: sonarqube
+    recurse: yes
+
+- name: Create Systemd Service
+  copy:
+    dest: /etc/systemd/system/sonarqube.service
+    content: |
+      [Unit]
+      Description=SonarQube
+      After=network.target
+      [Service]
+      Type=forking
+      User=sonarqube
+      ExecStart=/opt/sonarqube-10.4.1.88267/bin/linux-x86-64/sonar.sh start
+      ExecStop=/opt/sonarqube-10.4.1.88267/bin/linux-x86-64/sonar.sh stop
+      Restart=always
+      LimitNOFILE=65536
+      LimitNPROC=4096
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Start SonarQube
+  systemd:
+    name: sonarqube
+    state: started
+    enabled: yes
+    daemon_reload: yes

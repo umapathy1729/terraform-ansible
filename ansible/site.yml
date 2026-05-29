@@ -1,0 +1,14 @@
+---
+- name: Setup Jenkins Server
+  hosts: jenkins_server
+  become: yes
+  roles:
+    - jenkins
+
+- name: Setup DevOps Tools Server
+  hosts: devops_tools_server
+  become: yes
+  roles:
+    - harbor
+    - vault
+    - sonarqube
