@@ -4,37 +4,56 @@
   register: java_version
   ignore_errors: yes
 
-- name: Download Java 21 RPM
-  shell: |
-    wget https://corretto.aws/downloads/latest/amazon-corretto-21-x64-linux-jdk.rpm -O /tmp/java21.rpm
-  when: java_version.rc != 0
-
-- name: Install Java 21 RPM
-  shell: yum install -y /tmp/java21.rpm
-  when: java_version.rc != 0
-
-- name: Add Jenkins Repo
-  get_url:
-    url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
-    dest: /etc/yum.repos.d/jenkins.repo
-
-- name: Add Jenkins GPG Key
-  rpm_key:
-    key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+- name: Install Java 21
+  apt:
+    name: openjdk-21-jdk
     state: present
+    update_cache: yes
+  when: java_version.rc != 0
 
-- name: Install Jenkins
-  yum:
-    name: jenkins
+- name: Install required packages
+  apt:
+    name:
+      - curl
+      - wget
+      - gnupg
+      - unzip
+      - software-properties-common
     state: present
     update_cache: yes
 
-- name: Set JAVA_HOME in Jenkins config
-  lineinfile:
-    path: /etc/sysconfig/jenkins
-    regexp: '^JENKINS_JAVA_CMD='
-    line: 'JENKINS_JAVA_CMD=/usr/bin/java'
-    create: yes
+- name: Add Jenkins GPG Key
+  apt_key:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    state: present
+
+- name: Add Jenkins Repository
+  apt_repository:
+    repo: "deb https://pkg.jenkins.io/debian-stable binary/"
+    state: present
+    filename: jenkins
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install Jenkins
+  apt:
+    name: jenkins
+    state: present
+
+- name: Create Jenkins Java Configuration Directory
+  file:
+    path: /etc/systemd/system/jenkins.service.d
+    state: directory
+    mode: '0755'
+
+- name: Configure JAVA_HOME for Jenkins
+  copy:
+    dest: /etc/systemd/system/jenkins.service.d/override.conf
+    content: |
+      [Service]
+      Environment="JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64"
 
 - name: Reload systemd
   systemd:
@@ -47,23 +66,35 @@
     enabled: yes
 
 - name: Install Git
-  yum:
+  apt:
     name: git
     state: present
 
-- name: Install NodeJS 18
+- name: Add NodeSource Repository for Node.js 18
   shell: |
-    curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
-    yum install -y nodejs --skip-broken
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+  args:
+    executable: /bin/bash
+
+- name: Install Node.js 18
+  apt:
+    name: nodejs
+    state: present
+    update_cache: yes
 
 - name: Install AWS CLI
   shell: |
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
     unzip -o /tmp/awscliv2.zip -d /tmp
-    sudo /tmp/aws/install --update
+    /tmp/aws/install --update
+  args:
+    executable: /bin/bash
 
 - name: Install Docker
-  shell: amazon-linux-extras install docker -y
+  apt:
+    name: docker.io
+    state: present
+    update_cache: yes
 
 - name: Start Docker
   service:
@@ -77,8 +108,15 @@
     groups: docker
     append: yes
 
-- name: Install SonarQube Scanner
+- name: Verify installations
   shell: |
-    wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip -O /tmp/sonar-scanner.zip
-    unzip -o /tmp/sonar-scanner.zip -d /opt/
-    ln -sf /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner /usr/local/bin/sonar-scanner
+    java -version
+    git --version
+    node --version
+    aws --version
+    docker --version
+  register: versions
+
+- name: Display installed versions
+  debug:
+    var: versions.stdout_lines
