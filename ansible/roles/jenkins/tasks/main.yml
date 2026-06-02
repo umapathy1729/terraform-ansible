@@ -42,12 +42,6 @@
     name: jenkins
     state: present
 
-- name: Create Jenkins Java Configuration Directory
-  file:
-    path: /etc/systemd/system/jenkins.service.d
-    state: directory
-    mode: '0755'
-
 - name: Configure JAVA_HOME for Jenkins
   copy:
     dest: /etc/systemd/system/jenkins.service.d/override.conf
@@ -59,7 +53,7 @@
   systemd:
     daemon_reload: yes
 
-- name: Start Jenkins
+- name: Enable and Start Jenkins
   systemd:
     name: jenkins
     state: started
@@ -70,19 +64,19 @@
     name: git
     state: present
 
-- name: Add NodeSource Repository for Node.js 18
+- name: Add NodeSource Repository
   shell: |
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
   args:
     executable: /bin/bash
 
-- name: Install Node.js 18
+- name: Install Node.js
   apt:
     name: nodejs
     state: present
     update_cache: yes
 
-- name: Install AWS CLI
+- name: Install AWS CLI v2
   shell: |
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
     unzip -o /tmp/awscliv2.zip -d /tmp
@@ -96,19 +90,24 @@
     state: present
     update_cache: yes
 
-- name: Start Docker
+- name: Enable and Start Docker
   service:
     name: docker
     state: started
     enabled: yes
 
-- name: Add Jenkins to Docker group
+- name: Add Jenkins user to Docker group
   user:
     name: jenkins
     groups: docker
     append: yes
 
-- name: Verify installations
+- name: Restart Jenkins
+  systemd:
+    name: jenkins
+    state: restarted
+
+- name: Verify Installed Components
   shell: |
     java -version
     git --version
@@ -117,6 +116,6 @@
     docker --version
   register: versions
 
-- name: Display installed versions
+- name: Display Versions
   debug:
     var: versions.stdout_lines
