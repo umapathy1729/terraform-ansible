@@ -3,7 +3,7 @@ variable "aws_region" {
 }
 
 variable "bucket_name" {
-  default = "my-app-bucket-yourname-2026"
+  default = "my-app-bucket-yourname-03062026"
 }
 
 # variable "cluster_name" {
