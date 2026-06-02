@@ -13,12 +13,3 @@ output "s3_bucket" {
 output "cloudfront_url" {
   value = aws_cloudfront_distribution.cdn.domain_name
 }
-
-output "eks_endpoint" {
-  value = aws_eks_cluster.main.endpoint
-}
-
-output "eks_cluster_name" {
-  value = aws_eks_cluster.main.name
-}
-
