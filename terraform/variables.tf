@@ -1,5 +1,5 @@
 variable "aws_region" {
-  default = "ap-southeast-2"
+  default = "ap-south-1"
 }
 
 variable "bucket_name" {
