@@ -1,9 +1,16 @@
-data "aws_ami" "amazon_linux" {
+# Ubuntu 22.04 LTS AMI
+data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["amazon"]
+  owners      = ["099720109477"] # Canonical
+
   filter {
     name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
   }
 }
 
@@ -28,15 +35,7 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # SonarQube
-  ingress {
-    from_port   = 9000
-    to_port     = 9000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Harbor
+  # Harbor HTTP
   ingress {
     from_port   = 80
     to_port     = 80
@@ -44,6 +43,7 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Harbor HTTPS
   ingress {
     from_port   = 443
     to_port     = 443
@@ -74,7 +74,7 @@ resource "aws_security_group" "app_sg" {
 
 # Instance 1 - Jenkins Server
 resource "aws_instance" "jenkins" {
-  ami                    = data.aws_ami.amazon_linux.id
+  ami                    = data.aws_ami.ubuntu.id
   instance_type          = "c7i-flex.large"
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.app_sg.id]
@@ -88,9 +88,9 @@ resource "aws_instance" "jenkins" {
   }
 }
 
-# Instance 2 - DevOps Tools Server
+# Instance 2 - Harbor + Vault Server
 resource "aws_instance" "devops_tools" {
-  ami                    = data.aws_ami.amazon_linux.id
+  ami                    = data.aws_ami.ubuntu.id
   instance_type          = "c7i-flex.large"
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.app_sg.id]
