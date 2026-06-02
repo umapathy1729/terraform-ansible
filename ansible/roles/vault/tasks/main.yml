@@ -1,32 +1,72 @@
 ---
+- name: Install required packages
+  apt:
+    name:
+      - gpg
+      - curl
+      - software-properties-common
+    state: present
+    update_cache: yes
+
+- name: Add HashiCorp GPG Key
+  apt_key:
+    url: https://apt.releases.hashicorp.com/gpg
+    state: present
+
+- name: Add HashiCorp Repository
+  apt_repository:
+    repo: "deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+    state: present
+    filename: hashicorp
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
 - name: Install Vault
-  shell: |
-    yum install -y yum-utils
-    yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
-    yum install -y vault
+  apt:
+    name: vault
+    state: present
 
-- name: Create Vault Config
-  copy:
-    dest: /etc/vault.d/vault.hcl
-    content: |
-      ui = true
-      storage "file" {
-        path = "/opt/vault/data"
-      }
-      listener "tcp" {
-        address     = "0.0.0.0:8200"
-        tls_disable = 1
-      }
-
-- name: Create Vault Data Dir
+- name: Create Vault Data Directory
   file:
     path: /opt/vault/data
     state: directory
     owner: vault
     group: vault
+    mode: "0755"
 
-- name: Start Vault
-  service:
+- name: Create Vault Configuration Directory
+  file:
+    path: /etc/vault.d
+    state: directory
+    owner: vault
+    group: vault
+    mode: "0755"
+
+- name: Create Vault Config
+  copy:
+    dest: /etc/vault.d/vault.hcl
+    owner: vault
+    group: vault
+    mode: "0644"
+    content: |
+      ui = true
+
+      storage "file" {
+        path = "/opt/vault/data"
+      }
+
+      listener "tcp" {
+        address     = "0.0.0.0:8200"
+        tls_disable = 1
+      }
+
+      api_addr = "http://0.0.0.0:8200"
+
+- name: Enable and Start Vault
+  systemd:
     name: vault
     state: started
     enabled: yes
+    daemon_reload: yes
