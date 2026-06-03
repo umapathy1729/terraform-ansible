@@ -15,5 +15,5 @@ variable "bucket_name" {
 # }
 
 variable "key_name" {
-  default = "ansible-key"
+  default = "my_ubuntu_key"
 }
