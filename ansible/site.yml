@@ -16,3 +16,5 @@
 # inside terraform-ansible/ansible folder
 # ansible all -m ping
 # ansible-playbook -i inventory.ini site.yml
+# ansible jenkins -i inventory.ini -m shell -a "java -version && git --version && node --version && aws --version && docker --version && systemctl status jenkins --no-pager" --become
+# ansible devops -i inventory.ini -m shell -a "vault --version && systemctl status vault --no-pager" --become
