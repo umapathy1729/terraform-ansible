@@ -1,4 +1,3 @@
----
 - name: Check Java Version
   shell: java -version 2>&1
   register: java_version
@@ -22,14 +21,17 @@
     state: present
     update_cache: yes
 
-- name: Add Jenkins GPG Key
-  apt_key:
-    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
-    state: present
+- name: Download Jenkins GPG Key
+  shell: |
+    curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | \
+    gpg --batch --yes --dearmor -o /usr/share/keyrings/jenkins-keyring.gpg
+    chmod 644 /usr/share/keyrings/jenkins-keyring.gpg
+  args:
+    executable: /bin/bash
 
 - name: Add Jenkins Repository
   apt_repository:
-    repo: "deb https://pkg.jenkins.io/debian-stable binary/"
+    repo: "deb [signed-by=/usr/share/keyrings/jenkins-keyring.gpg trusted=yes] https://pkg.jenkins.io/debian-stable binary/"
     state: present
     filename: jenkins
 
@@ -41,6 +43,12 @@
   apt:
     name: jenkins
     state: present
+
+- name: Create Jenkins systemd override directory
+  file:
+    path: /etc/systemd/system/jenkins.service.d
+    state: directory
+    mode: '0755'
 
 - name: Configure JAVA_HOME for Jenkins
   copy:
@@ -119,3 +127,5 @@
 - name: Display Versions
   debug:
     var: versions.stdout_lines
+
+
