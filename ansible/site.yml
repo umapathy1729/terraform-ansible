@@ -11,3 +11,8 @@
   roles:
     - harbor
     - vault
+
+
+# inside terraform-ansible/ansible folder
+# ansible all -m ping
+# ansible-playbook -i inventory.ini site.yml
